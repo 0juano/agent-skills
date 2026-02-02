@@ -5,9 +5,10 @@ description: >
   FX rates, ETF flows, fundamentals, and news. Use when the user asks about stock prices,
   bond yields, credit metrics, leverage ratios, debt/ebitda, interest coverage, macro
   indicators (VIX, DXY, treasury yields, oil, gold, BTC), LatAm FX (ARS, BRL, CLP, MXN, COP),
-  ETF holdings, income statements, balance sheets, cash flow, or financial news. Tailored for
-  fixed income and EM investors. Commands: yf price, yf quote, yf compare, yf credit, yf macro,
-  yf fx, yf flows, yf history, yf fundamentals, yf news, yf search.
+  ETF holdings, income statements, balance sheets, cash flow, financial news, options chains,
+  dividend history, or analyst ratings/upgrades. Tailored for fixed income and EM investors.
+  Commands: yf price, yf quote, yf compare, yf credit, yf macro, yf fx, yf flows, yf history,
+  yf fundamentals, yf news, yf search, yf options, yf dividends, yf ratings.
 license: MIT
 compatibility: Requires Python 3.10+ and uv
 allowed-tools: Read Bash(yf:*) Bash(cat:*) Bash(chmod:*)

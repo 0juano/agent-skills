@@ -22,6 +22,9 @@ Commands:
   fundamentals TICKER    Full financials (IS, BS, CF)
   news TICKER            Recent news
   search QUERY           Find tickers
+  options TICKER         Options chain (near-the-money calls & puts)
+  dividends TICKER       Dividend history, yield, payout ratio
+  ratings TICKER         Analyst recommendations & upgrades/downgrades
 """
 
 import json
@@ -738,6 +741,220 @@ def cmd_search(args: list[str]):
     console.print(table)
 
 
+def cmd_options(args: list[str]):
+    if not args:
+        err_console.print("[red]Usage: yf options TICKER[/red]")
+        sys.exit(1)
+    symbol = args[0].upper()
+    t = yf.Ticker(symbol)
+
+    try:
+        dates = t.options
+    except Exception:
+        dates = []
+
+    if not dates:
+        console.print(f"[dim]No options data for {symbol}[/dim]")
+        return
+
+    # Use nearest expiry
+    exp = dates[0]
+    chain = t.option_chain(exp)
+
+    if _json_mode():
+        out = {"symbol": symbol, "expiry": exp, "expirations": list(dates)}
+        out["calls"] = chain.calls.head(15).to_dict(orient="records") if chain.calls is not None else []
+        out["puts"] = chain.puts.head(15).to_dict(orient="records") if chain.puts is not None else []
+        print(json.dumps(out, default=str))
+        return
+
+    # Find ATM strike
+    info = t.info
+    price = info.get("regularMarketPrice", info.get("previousClose", 0))
+
+    for label, df in [("CALLS", chain.calls), ("PUTS", chain.puts)]:
+        if df is None or df.empty:
+            console.print(f"[dim]{label}: No data[/dim]")
+            continue
+
+        # Filter near the money (±10 strikes from ATM)
+        if price:
+            try:
+                atm_idx = (df["strike"] - float(price)).abs().idxmin()
+                start = max(0, atm_idx - 5)
+                end = min(len(df), atm_idx + 6)
+                df = df.iloc[start:end]
+            except Exception:
+                df = df.head(15)
+        else:
+            df = df.head(15)
+
+        table = Table(title=f"{'📈' if label == 'CALLS' else '📉'} {symbol} {label} — Exp: {exp}")
+        table.add_column("Strike", justify="right", style="bold")
+        table.add_column("Bid", justify="right")
+        table.add_column("Ask", justify="right")
+        table.add_column("Last", justify="right")
+        table.add_column("Vol", justify="right")
+        table.add_column("OI", justify="right")
+        table.add_column("IV", justify="right")
+
+        for _, row in df.iterrows():
+            strike = f"{row.get('strike', 0):.2f}"
+            itm = ""
+            if price:
+                try:
+                    if (label == "CALLS" and row["strike"] < float(price)) or \
+                       (label == "PUTS" and row["strike"] > float(price)):
+                        itm = " [bold]ITM[/bold]"
+                except (ValueError, TypeError):
+                    pass
+            table.add_row(
+                strike + itm,
+                f"{row.get('bid', 0):.2f}",
+                f"{row.get('ask', 0):.2f}",
+                f"{row.get('lastPrice', 0):.2f}",
+                str(int(row.get("volume", 0))) if row.get("volume") else "-",
+                str(int(row.get("openInterest", 0))) if row.get("openInterest") else "-",
+                f"{row.get('impliedVolatility', 0)*100:.1f}%" if row.get("impliedVolatility") else "-",
+            )
+        console.print(table)
+
+    console.print(f"[dim]Available expirations: {', '.join(dates[:8])}{'...' if len(dates) > 8 else ''}[/dim]")
+
+
+def cmd_dividends(args: list[str]):
+    if not args:
+        err_console.print("[red]Usage: yf dividends TICKER[/red]")
+        sys.exit(1)
+    symbol = args[0].upper()
+    t, info = _get_ticker(symbol)
+
+    div_info = {
+        "Dividend Rate": _safe_get(info, "dividendRate"),
+        "Dividend Yield": _fmt_pct(_safe_get(info, "dividendYield")),
+        "Ex-Dividend Date": _safe_get(info, "exDividendDate"),
+        "Payout Ratio": _fmt_pct(_safe_get(info, "payoutRatio")),
+        "5Y Avg Yield": _fmt_pct(_safe_get(info, "fiveYearAvgDividendYield")),
+        "Trailing Annual Rate": _safe_get(info, "trailingAnnualDividendRate"),
+        "Trailing Annual Yield": _fmt_pct(_safe_get(info, "trailingAnnualDividendYield")),
+    }
+
+    # Convert ex-div date from epoch
+    ex_div = info.get("exDividendDate")
+    if ex_div and isinstance(ex_div, (int, float)):
+        try:
+            div_info["Ex-Dividend Date"] = datetime.fromtimestamp(ex_div).strftime("%Y-%m-%d")
+        except Exception:
+            pass
+
+    divs = t.dividends
+    history = []
+    if divs is not None and not divs.empty:
+        for date, amount in divs.tail(12).items():
+            history.append({
+                "date": str(date.date()) if hasattr(date, 'date') else str(date)[:10],
+                "amount": round(float(amount), 4)
+            })
+
+    if _json_mode():
+        print(json.dumps({"symbol": symbol, "info": div_info, "history": history}, default=str))
+        return
+
+    name = _safe_get(info, "shortName", symbol)
+    table = Table(title=f"💰 Dividends — {name} ({symbol})", show_header=False, padding=(0, 2))
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    for k, v in div_info.items():
+        table.add_row(k, str(v))
+    console.print(table)
+
+    if history:
+        h_table = Table(title=f"📅 Recent Dividend History")
+        h_table.add_column("Date", style="bold")
+        h_table.add_column("Amount", justify="right")
+        for h in history:
+            h_table.add_row(h["date"], f"${h['amount']:.4f}")
+        console.print(h_table)
+    else:
+        console.print(f"[dim]No dividend history for {symbol}[/dim]")
+
+
+def cmd_ratings(args: list[str]):
+    if not args:
+        err_console.print("[red]Usage: yf ratings TICKER[/red]")
+        sys.exit(1)
+    symbol = args[0].upper()
+    t, info = _get_ticker(symbol)
+
+    # Recommendation summary
+    rec_info = {
+        "Recommendation": _safe_get(info, "recommendationKey", "").upper(),
+        "Mean Rating": _safe_get(info, "recommendationMean"),
+        "# of Analysts": _safe_get(info, "numberOfAnalystOpinions"),
+        "Target Mean": _safe_get(info, "targetMeanPrice"),
+        "Target Low": _safe_get(info, "targetLowPrice"),
+        "Target High": _safe_get(info, "targetHighPrice"),
+        "Target Median": _safe_get(info, "targetMedianPrice"),
+    }
+
+    # Current price for upside calc
+    price = info.get("regularMarketPrice", info.get("previousClose"))
+    target_mean = info.get("targetMeanPrice")
+    if price and target_mean:
+        try:
+            upside = ((float(target_mean) - float(price)) / float(price)) * 100
+            rec_info["Upside to Mean"] = f"{upside:+.1f}%"
+        except (ValueError, TypeError, ZeroDivisionError):
+            pass
+
+    # Upgrades/downgrades
+    upgrades = []
+    try:
+        ug = t.upgrades_downgrades
+        if ug is not None and not ug.empty:
+            for date, row in ug.tail(10).iterrows():
+                upgrades.append({
+                    "date": str(date.date()) if hasattr(date, 'date') else str(date)[:10],
+                    "firm": row.get("Firm", ""),
+                    "toGrade": row.get("ToGrade", ""),
+                    "fromGrade": row.get("FromGrade", ""),
+                    "action": row.get("Action", ""),
+                })
+    except Exception:
+        pass
+
+    if _json_mode():
+        print(json.dumps({"symbol": symbol, "summary": rec_info, "upgrades_downgrades": upgrades}, default=str))
+        return
+
+    name = _safe_get(info, "shortName", symbol)
+    table = Table(title=f"⭐ Analyst Ratings — {name} ({symbol})", show_header=False, padding=(0, 2))
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    for k, v in rec_info.items():
+        if k == "Recommendation":
+            color = {"BUY": "green", "STRONG_BUY": "green", "HOLD": "yellow", "SELL": "red", "STRONG_SELL": "red"}.get(str(v), "white")
+            table.add_row(k, f"[{color}]{v}[/{color}]")
+        else:
+            table.add_row(k, str(v))
+    console.print(table)
+
+    if upgrades:
+        u_table = Table(title="📋 Recent Upgrades/Downgrades")
+        u_table.add_column("Date", style="bold")
+        u_table.add_column("Firm")
+        u_table.add_column("Action")
+        u_table.add_column("From")
+        u_table.add_column("To")
+        for u in reversed(upgrades):
+            action = u["action"]
+            color = {"up": "green", "main": "yellow", "down": "red", "init": "blue", "reit": "dim"}.get(action.lower()[:4], "white")
+            u_table.add_row(u["date"], u["firm"], f"[{color}]{action}[/{color}]", u["fromGrade"], u["toGrade"])
+        console.print(u_table)
+    else:
+        console.print(f"[dim]No upgrade/downgrade data for {symbol}[/dim]")
+
+
 def main():
     args = _clean_args()
     if not args:
@@ -759,6 +976,9 @@ def main():
         "fundamentals": cmd_fundamentals,
         "news": cmd_news,
         "search": cmd_search,
+        "options": cmd_options,
+        "dividends": cmd_dividends,
+        "ratings": cmd_ratings,
     }
 
     if cmd in ("help", "-h", "--help"):
