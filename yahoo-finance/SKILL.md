@@ -11,7 +11,7 @@ description: >
   yf fundamentals, yf news, yf search, yf options, yf dividends, yf ratings.
 license: MIT
 compatibility: Requires Python 3.10+ and uv
-allowed-tools: Read Bash(yf:*) Bash(cat:*) Bash(chmod:*)
+allowed-tools: Read Bash(yf:*)
 metadata:
   author: 0juano
   version: "1.0.0"
