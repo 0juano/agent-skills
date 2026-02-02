@@ -6,7 +6,7 @@ description: >
   bond yields, credit metrics, leverage ratios, debt/ebitda, interest coverage, macro
   indicators (VIX, DXY, treasury yields, oil, gold, BTC), LatAm FX (ARS, BRL, CLP, MXN, COP),
   ETF holdings, income statements, balance sheets, cash flow, financial news, options chains,
-  dividend history, or analyst ratings/upgrades. Tailored for fixed income and EM investors.
+  dividend history, or analyst ratings/upgrades.
   Commands: yf price, yf quote, yf compare, yf credit, yf macro, yf fx, yf flows, yf history,
   yf fundamentals, yf news, yf search, yf options, yf dividends, yf ratings.
 license: MIT
@@ -29,7 +29,7 @@ metadata:
 
 # Yahoo Finance CLI
 
-Financial data terminal for fixed income / EM investors. All commands via the `yf` script.
+Financial data terminal powered by Yahoo Finance. All commands via the `yf` script.
 
 ## Setup
 
