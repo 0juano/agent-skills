@@ -486,6 +486,60 @@ After using your skill and encountering edge cases or failures, bring those exam
 
 ---
 
+## Publishing/Listing Checklist
+
+**Before listing your skill publicly** (GitHub, marketplace, sharing with others):
+
+### Quality & Testing
+- [ ] Tested with 3+ real-world scenarios (happy path, edge case, error)
+- [ ] Tested on 2+ models (minimum Haiku + Sonnet)
+- [ ] Skill triggers on 90%+ of relevant queries
+- [ ] Skill does NOT trigger on unrelated topics
+- [ ] Zero failed API calls in test runs
+- [ ] Consistent results across multiple sessions
+
+### Documentation
+- [ ] README.md exists at repo root (for humans visiting GitHub)
+- [ ] Installation instructions are clear and tested
+- [ ] Example usage with screenshots/output samples
+- [ ] All dependencies documented (binaries, API keys, MCP servers)
+- [ ] Compatibility notes (macOS/Linux/Windows, required versions)
+
+### Security & Privacy
+- [ ] No secrets/API keys hardcoded in files
+- [ ] `allowed-tools` scoped as narrowly as possible
+- [ ] Scripts validate all inputs
+- [ ] No personal data in examples/templates
+- [ ] License file included (MIT, Apache-2.0, etc.)
+
+### Code Quality
+- [ ] All scripts have shebangs and error handling
+- [ ] Scripts use `set -euo pipefail` (bash) or equivalent
+- [ ] Meaningful error messages to stderr
+- [ ] Scripts support `--help` flag
+- [ ] Python scripts use PEP 723 for dependencies (if applicable)
+
+### Metadata & Discoverability
+- [ ] `description` is keyword-rich and trigger-specific
+- [ ] `metadata.author` and `metadata.version` set
+- [ ] Tags/categories appropriate for discovery
+- [ ] Name is clear and searchable
+- [ ] No naming conflicts with existing popular skills
+
+### User Experience
+- [ ] First-time user can accomplish task without reading docs
+- [ ] Error messages guide user to solution
+- [ ] Skill doesn't require manual intervention mid-workflow
+- [ ] SKILL.md under 5,000 words (detailed docs in references/)
+
+### Legal & Attribution
+- [ ] License compatible with dependencies
+- [ ] Attribution for any borrowed code/patterns
+- [ ] No trademark violations in skill name
+- [ ] Compliance with API terms of service (if calling external APIs)
+
+---
+
 ## Quick Checklist
 
 ### Before you start
