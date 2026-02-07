@@ -2,6 +2,8 @@
 
 > Quick reference for building high-quality skills. Follow this every time.
 
+**📖 For comprehensive guidance, see [Anthropic's Official Skills Guide Summary](./docs/ANTHROPIC-GUIDE-SUMMARY.md)**
+
 ---
 
 ## How Skills Work
