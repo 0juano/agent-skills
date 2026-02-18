@@ -36,13 +36,14 @@ Base URL: `https://bondterminal.com/api/v1`
 **Identifier formats:** ISIN (`US040114HS26`), local ticker with D/C suffix (`AL30D`, `GD30D`).
 
 Full docs: https://bondterminal.com/developers
+Endpoint reference in this skill: `references/endpoints.md`
 
 ## How x402 Works
 
 1. Call any x402 endpoint without auth → server returns `402` with `PAYMENT-REQUIRED` header
 2. Decode the header (base64 JSON) to get payment requirements (amount, asset, network, payTo)
 3. Sign an EIP-3009 `transferWithAuthorization` using your EVM private key
-4. Retry the request with the signed payment in the `X-PAYMENT` header (base64 JSON)
+4. Retry the request with the signed payment in the `PAYMENT-SIGNATURE` header (v2), with `X-PAYMENT` as legacy fallback
 5. Server verifies payment via Coinbase facilitator, returns data + `PAYMENT-RESPONSE` header
 
 ## Usage with @x402 Client Libraries
@@ -65,9 +66,14 @@ import { createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { x402Client } from '@x402/core/client';
+import { x402HTTPClient } from '@x402/core/http';
 import { ExactEvmScheme } from '@x402/evm';
 
 // Setup signer
+if (!process.env.X402_PRIVATE_KEY) {
+  throw new Error('X402_PRIVATE_KEY is required');
+}
+
 const account = privateKeyToAccount(process.env.X402_PRIVATE_KEY);
 const walletClient = createWalletClient({ account, chain: base, transport: http() });
 const signer = {
@@ -79,6 +85,7 @@ const signer = {
 const scheme = new ExactEvmScheme(signer);
 const client = new x402Client();
 client.register('eip155:8453', scheme);
+const httpClient = new x402HTTPClient(client);
 
 // Fetch with automatic payment
 async function fetchBT(path) {
@@ -86,11 +93,26 @@ async function fetchBT(path) {
   let res = await fetch(url);
 
   if (res.status === 402) {
-    const header = res.headers.get('payment-required');
-    const paymentData = JSON.parse(Buffer.from(header, 'base64').toString('utf8'));
-    const payload = await client.createPaymentPayload(paymentData);
-    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64');
-    res = await fetch(url, { headers: { 'X-PAYMENT': encoded } });
+    const paymentRequired = httpClient.getPaymentRequiredResponse(
+      (name) => res.headers.get(name),
+      await res.json()
+    );
+    const payload = await httpClient.createPaymentPayload(paymentRequired);
+
+    // Preferred v2 header
+    res = await fetch(url, {
+      headers: httpClient.encodePaymentSignatureHeader(payload),
+    });
+
+    // Legacy fallback for servers still expecting X-PAYMENT
+    if (res.status === 402) {
+      const encoded = Buffer.from(JSON.stringify(payload)).toString('base64');
+      res = await fetch(url, { headers: { 'X-PAYMENT': encoded } });
+    }
+  }
+
+  if (!res.ok) {
+    throw new Error(`BondTerminal request failed (${res.status})`);
   }
 
   return res.json();
@@ -102,11 +124,19 @@ const analytics = await fetchBT('/bonds/AL30D/analytics');
 const riesgo = await fetchBT('/riesgo-pais');
 ```
 
+## Quick Test
+
+After setup, run these to validate both free and paid flows:
+
+```javascript
+await fetchBT('/treasury-curve'); // free route (no payment)
+await fetchBT('/riesgo-pais');    // paid route (x402 payment flow)
+```
+
 ## Wallet Requirements
 
 The signing wallet needs:
 - **USDC on Base** — for the $0.01 payment per request
-- **Small ETH on Base** — not needed for gas (gasless EIP-3009), but good to have
 
 ## Notes
 

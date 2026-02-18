@@ -35,7 +35,7 @@ POST /calculate/batch                Batch bond calculations (subscription requi
 ## Auth Behavior
 
 - x402 routes return `402` with `PAYMENT-REQUIRED` header when called without auth
-- Client signs EIP-3009 payment and retries with `X-PAYMENT` header (or `PAYMENT-SIGNATURE`)
+- Client signs EIP-3009 payment and retries with `PAYMENT-SIGNATURE` (v2), with `X-PAYMENT` as legacy fallback
 - Bearer token auth (`Authorization: Bearer <key>`) also accepted on all x402 routes
 - Successful payment returns `PAYMENT-RESPONSE` header with settlement tx hash
 
