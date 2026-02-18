@@ -3,6 +3,7 @@
 Base URL (default):
 
 - `https://bondterminal.com/api/v1`
+- Cost on paid routes: `$0.01 USDC per request` (Base mainnet)
 
 Documentation references:
 

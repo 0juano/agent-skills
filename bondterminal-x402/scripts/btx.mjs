@@ -6,6 +6,8 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 
 const DEFAULT_BASE_URL = process.env.BT_API_BASE_URL || 'https://bondterminal.com/api/v1';
+const PRIMARY_PRIVATE_KEY_ENV = 'X402_PRIVATE_KEY';
+const FALLBACK_PRIVATE_KEY_ENV = 'EVM_PRIVATE_KEY';
 
 let cachedPaymentClient = null;
 
@@ -83,13 +85,14 @@ function getBaseUrl(values) {
 async function getPaymentClient() {
   if (cachedPaymentClient) return cachedPaymentClient;
 
-  const privateKey = process.env.X402_PRIVATE_KEY?.trim();
+  const privateKey = process.env[PRIMARY_PRIVATE_KEY_ENV]?.trim()
+    || process.env[FALLBACK_PRIVATE_KEY_ENV]?.trim();
   if (!privateKey) {
-    throw new Error('X402_PRIVATE_KEY is required for paid endpoints');
+    throw new Error(`${PRIMARY_PRIVATE_KEY_ENV} or ${FALLBACK_PRIVATE_KEY_ENV} is required for paid endpoints`);
   }
 
   if (!/^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
-    throw new Error('Invalid X402_PRIVATE_KEY format. Expected 32-byte hex with 0x prefix');
+    throw new Error('Invalid private key format. Expected 32-byte hex with 0x prefix');
   }
 
   const [{ x402Client }, { x402HTTPClient }, evmModule, viemAccountsModule] = await Promise.all([

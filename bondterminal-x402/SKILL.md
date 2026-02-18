@@ -15,6 +15,7 @@ metadata:
 # BondTerminal x402
 
 Use this skill to fetch BondTerminal data with x402 pay-per-call auth (no Bearer API key).
+Cost: **$0.01 USDC per paid request on Base mainnet**.
 
 ## Setup
 
@@ -27,12 +28,18 @@ Make it executable once:
 chmod +x {baseDir}/scripts/btx
 ```
 
-Run commands from a workspace that has BondTerminal dependencies installed (`@x402/core`, `@x402/evm`, `viem`).
+Install runtime dependencies (once per workspace):
 
-Required env var:
+```bash
+npm install @x402/core @x402/evm viem
+```
+
+Required env var (either name is accepted):
 
 ```bash
 export X402_PRIVATE_KEY=0x... # EVM private key used to sign x402 payments
+# or
+export EVM_PRIVATE_KEY=0x...
 ```
 
 Optional env var:
@@ -47,6 +54,14 @@ Reference docs:
 - `https://bondterminal.com/developers`
 - `https://bondterminal.com/developers.md`
 - `https://bondterminal.com/api/v1/docs/`
+
+## Funding Requirements
+
+Before paid calls can settle successfully, the signing wallet must have:
+- USDC on Base (for the $0.01 payment amount)
+- A small ETH balance on Base (gas)
+
+If either balance is missing, the payment may fail during settle.
 
 ## Commands
 
@@ -77,7 +92,8 @@ Use `--json` on any command for machine-readable output.
 
 ## Troubleshooting
 
-- `X402_PRIVATE_KEY is required`: set `X402_PRIVATE_KEY` in your shell.
-- `Invalid X402_PRIVATE_KEY`: ensure 32-byte hex with `0x` prefix.
+- `X402_PRIVATE_KEY or EVM_PRIVATE_KEY is required`: set one of them in your shell.
+- `Invalid private key format`: ensure 32-byte hex with `0x` prefix.
 - `401 Authorization header required`: target env is not accepting x402 for that route.
 - `403 Batch requires API key subscription`: use Bearer auth for `/calculate/batch`.
+- Settlement/payment failure: check wallet USDC balance and Base ETH gas balance.
