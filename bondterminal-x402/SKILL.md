@@ -7,7 +7,7 @@ description: >
   (e.g. AL30, GD30, US040114HS26). Supports automatic 402 → payment → retry.
 metadata:
   author: 0juano
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # BondTerminal x402
@@ -42,52 +42,45 @@ Endpoint reference in this skill: `references/endpoints.md`
 
 1. Call any x402 endpoint without auth → server returns `402` with `PAYMENT-REQUIRED` header
 2. Decode the header (base64 JSON) to get payment requirements (amount, asset, network, payTo)
-3. Sign an EIP-3009 `transferWithAuthorization` using your EVM private key
+3. Sign an EIP-3009 `transferWithAuthorization` via the x402 client library
 4. Retry the request with the signed payment in the `PAYMENT-SIGNATURE` header (v2), with `X-PAYMENT` as legacy fallback
 5. Server verifies payment via Coinbase facilitator, returns data + `PAYMENT-RESPONSE` header
 
-## Usage with @x402 Client Libraries
+## Setup
 
-### Prerequisites
+### 1. Install dependencies
 
 ```bash
 npm install @x402/core @x402/evm viem
 ```
 
-Required env var:
-```bash
-export X402_PRIVATE_KEY=0x...  # EVM private key with USDC on Base
-```
+> **Note:** The code examples use ES modules. Use `.mjs` file extension or add `"type": "module"` to your `package.json`.
 
-### Node.js Example
+### 2. Configure a signer
+
+The x402 payment flow requires an EVM signer on Base mainnet with USDC balance. Configure your signer following the [x402 EVM documentation](https://github.com/coinbase/x402/tree/main/packages/evm).
+
+The signer must implement `{ address, signTypedData }` — any viem-compatible wallet client works (hardware wallet, KMS, injected provider, etc).
+
+See `references/signer-setup.md` for a complete signer configuration example.
+
+### 3. Register the x402 client
 
 ```javascript
-import { createWalletClient, http } from 'viem';
-import { base } from 'viem/chains';
-import { privateKeyToAccount } from 'viem/accounts';
 import { x402Client } from '@x402/core/client';
 import { x402HTTPClient } from '@x402/core/http';
-import { ExactEvmScheme } from '@x402/evm';
+import { ExactEvmScheme } from '@x402/evm'; // exact export name
 
-// Setup signer
-if (!process.env.X402_PRIVATE_KEY) {
-  throw new Error('X402_PRIVATE_KEY is required');
-}
-
-const account = privateKeyToAccount(process.env.X402_PRIVATE_KEY);
-const walletClient = createWalletClient({ account, chain: base, transport: http() });
-const signer = {
-  address: account.address,
-  signTypedData: (args) => walletClient.signTypedData({ account, ...args }),
-};
-
-// Register x402 client for Base mainnet
+// signer = { address, signTypedData } — see references/signer-setup.md
 const scheme = new ExactEvmScheme(signer);
 const client = new x402Client();
-client.register('eip155:8453', scheme);
+client.register('eip155:8453', scheme); // Base mainnet
 const httpClient = new x402HTTPClient(client);
+```
 
-// Fetch with automatic payment
+## Fetching Bond Data
+
+```javascript
 async function fetchBT(path) {
   const url = `https://bondterminal.com/api/v1${path}`;
   let res = await fetch(url);
@@ -126,17 +119,19 @@ const riesgo = await fetchBT('/riesgo-pais');
 
 ## Quick Test
 
-After setup, run these to validate both free and paid flows:
+Validate both free and paid flows:
 
 ```javascript
 await fetchBT('/treasury-curve'); // free route (no payment)
-await fetchBT('/riesgo-pais');    // paid route (x402 payment flow)
+await fetchBT('/riesgo-pais');    // paid route (triggers x402 flow)
 ```
 
 ## Wallet Requirements
 
 The signing wallet needs:
 - **USDC on Base** — for the $0.01 payment per request
+
+No ETH for gas is required — x402 uses EIP-3009 (off-chain signature), not on-chain transactions.
 
 ## Notes
 
