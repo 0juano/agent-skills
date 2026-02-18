@@ -43,6 +43,11 @@ export BT_API_BASE_URL=https://bondterminal.com/api/v1
 # export BTX_MODULE_BASE=/path/to/BondTerminal
 ```
 
+Reference docs:
+- `https://bondterminal.com/developers`
+- `https://bondterminal.com/developers.md`
+- `https://bondterminal.com/api/v1/docs/`
+
 ## Commands
 
 ```bash

@@ -4,6 +4,12 @@ Base URL (default):
 
 - `https://bondterminal.com/api/v1`
 
+Documentation references:
+
+- Human docs (primary): `https://bondterminal.com/developers`
+- Markdown mirror: `https://bondterminal.com/developers.md`
+- Interactive Swagger UI: `https://bondterminal.com/api/v1/docs/`
+
 x402-supported endpoints:
 
 - `GET /bonds`
