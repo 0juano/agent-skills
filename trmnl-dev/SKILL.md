@@ -13,7 +13,7 @@ metadata:
   version: "1.0.0"
 ---
 
-# TRMNL Private Plugins
+# TRMNL Dev
 
 Field-tested knowledge for building and operating TRMNL private plugins:
 what the docs say, plus the gotchas the docs don't mention (rendering
