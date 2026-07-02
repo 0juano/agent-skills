@@ -66,9 +66,10 @@ Auth: `Authorization: Bearer {TICKTICK_TOKEN}`
 
 ## Project IDs
 
-- The inbox has a special per-user id of the form `inbox<userId>`. Discover it
-  from `GET /project/inbox/data` (the `project.id` field) or from any inbox
-  task's `projectId` — it never appears in `GET /project`.
+- The inbox has a special per-user id of the form `inbox<userId>`. It never
+  appears in `GET /project`, and `GET /project/inbox/data` returns only
+  `{columns, tasks}` — no `project` field (verified live). Discover the id
+  from any inbox task's `projectId`; an empty inbox cannot be discovered.
 - All other project IDs: discovered dynamically via `GET /project`
 
 ## Date & Timezone

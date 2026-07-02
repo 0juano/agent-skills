@@ -56,6 +56,8 @@ priority_val() {
 
 # The inbox project id is per-user (inbox<userId>). Discover it via the
 # /project/inbox/data shortcut, or set TICKTICK_INBOX_ID to skip the lookup.
+# Note: that endpoint returns {columns, tasks} with no project field, so the
+# id comes from the tasks' projectId — an empty inbox cannot be discovered.
 inbox_id() {
   if [[ -n "${TICKTICK_INBOX_ID:-}" ]]; then
     echo "$TICKTICK_INBOX_ID"; return
@@ -63,10 +65,14 @@ inbox_id() {
   local id
   id=$(_get "/project/inbox/data" | python3 -c "
 import sys, json
-print(json.load(sys.stdin).get('project', {}).get('id', ''))
+d = json.load(sys.stdin)
+pid = (d.get('project') or {}).get('id') if isinstance(d, dict) else None
+if not pid and isinstance(d, dict):
+    pid = next((t.get('projectId') for t in d.get('tasks', []) if t.get('projectId')), None)
+print(pid or '')
 " 2>/dev/null)
   if [[ -z "$id" ]]; then
-    echo "ERROR: Could not discover inbox id; set TICKTICK_INBOX_ID" >&2; exit 1
+    echo "ERROR: Could not discover inbox id (bad token, or inbox is empty); set TICKTICK_INBOX_ID" >&2; exit 1
   fi
   echo "$id"
 }
