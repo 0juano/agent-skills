@@ -1,34 +1,37 @@
 ---
 name: ticktick
 description: >
-  Manage TickTick tasks and projects for JMO. Use when the user asks to add,
+  Manage TickTick tasks and projects. Use when the user asks to add,
   create, or capture a task or todo; list, show, or review pending tasks;
   complete or check off a task; update a task's priority, due date, notes, or
   tags; delete a task or list; create or manage a project/list; or see what's
   due today or overdue. Also handles quick captures like "remind me to..." or
   "don't let me forget...".
+license: MIT
 metadata:
   author: 0juano
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # TickTick
 
-Manage tasks and projects via `scripts/tt.sh`. Full API reference in `references/api.md`.
+Manage tasks and projects via `{baseDir}/scripts/tt.sh`. Full API reference in `references/api.md`.
 
-**Auth:** `TICKTICK_TOKEN` env var (set in shell from Infisical).
-**Timezone:** All dates in ART (America/Buenos_Aires, UTC-3). Script appends `-03:00` automatically.
-**Inbox ID:** `inbox131039472`
+**Auth:** `TICKTICK_TOKEN` env var — a TickTick personal access token (`tp_*`),
+used directly as a Bearer token; no OAuth flow needed. Load it from your
+secrets manager or shell profile.
+
+**Timezone:** due dates get the local UTC offset appended automatically.
+Override with `TICKTICK_UTC_OFFSET` (e.g. `-03:00`) and optionally
+`TICKTICK_TIMEZONE` (IANA name, e.g. `America/Buenos_Aires`).
+
+**Inbox:** the per-user inbox project id is auto-discovered from the API.
+Set `TICKTICK_INBOX_ID` to skip the extra lookup call.
 
 ## Quick Reference
 
 ```bash
-# Load token (if not already in env)
-export TICKTICK_TOKEN=$(infisical secrets get TICKTICK_TOKEN \
-  --token="$INFISICAL_TOKEN" --projectId="$INFISICAL_PROJECT_ID" \
-  --env=prod --plain 2>/dev/null | tail -1)
-
-TT="bash /root/.openclaw/workspace/skills/ticktick/scripts/tt.sh"
+TT="bash {baseDir}/scripts/tt.sh"
 ```
 
 ## Commands
@@ -49,7 +52,7 @@ $TT tasks --project <projectId>    # by ID
 ```bash
 $TT add "Buy tennis grip"
 $TT add "Call accountant" --priority high --due "2026-02-20T10:00:00"
-$TT add "Draft email" --project "Work" --priority med --notes "Reply to Yarilin"
+$TT add "Draft email" --project "Work" --priority med --notes "Reply to client"
 $TT add "Review PR" --tag "work,code"
 ```
 Priority values: `none` | `low` | `med` | `high`
@@ -86,12 +89,12 @@ $TT delete-project <projectId>
 
 ## Display Format
 
-When showing tasks to JMO, format like this:
+When showing tasks to the user, format like this:
 ```
 📋 Inbox — 3 pending
 
   ○ [HIGH]  Call accountant            — due Feb 20
-  ○ [MED]   Review BT analytics
+  ○ [MED]   Review analytics
   ○         Buy tennis racket grip
 ```
 Sort by: priority (high first), then due date. Hide completed tasks unless asked.

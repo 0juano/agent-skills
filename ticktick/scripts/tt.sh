@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tt.sh — TickTick CLI for Changi
+# tt.sh — TickTick CLI
 # Usage: tt.sh <command> [options]
 # Commands: list, tasks, add, complete, delete, update, projects, add-project, delete-project
 set -euo pipefail
@@ -13,7 +13,9 @@ if [[ -z "$TOKEN" ]]; then
   exit 1
 fi
 
-CURL="curl -s -H 'Authorization: Bearer $TOKEN' -H 'Content-Type: application/json'"
+# UTC offset appended to --due values (ISO 8601, e.g. -03:00). Defaults to the
+# machine's local offset; override with TICKTICK_UTC_OFFSET.
+TZ_OFFSET="${TICKTICK_UTC_OFFSET:-$(python3 -c 'from datetime import datetime; s = datetime.now().astimezone().strftime("%z"); print(s[:3] + ":" + s[3:])')}"
 
 _get()  { curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL$1"; }
 _post() { curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$2" "$BASE_URL$1"; }
@@ -30,7 +32,7 @@ Commands:
   add <title> [options]             Create a task
     --project <name|id>             Target project (default: inbox)
     --priority <none|low|med|high>  Priority
-    --due <YYYY-MM-DDTHH:MM:SS>     Due date (ART, -03:00 appended)
+    --due <YYYY-MM-DDTHH:MM:SS>     Due date (local UTC offset appended)
     --notes <text>                  Description
     --tag <tag1,tag2>               Tags (comma-separated)
   complete <taskId> --project <id>  Mark task complete
@@ -43,7 +45,7 @@ EOF
 }
 
 priority_val() {
-  case "${1,,}" in
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
     none)  echo 0 ;;
     low)   echo 1 ;;
     med|medium) echo 3 ;;
@@ -52,11 +54,28 @@ priority_val() {
   esac
 }
 
+# The inbox project id is per-user (inbox<userId>). Discover it via the
+# /project/inbox/data shortcut, or set TICKTICK_INBOX_ID to skip the lookup.
+inbox_id() {
+  if [[ -n "${TICKTICK_INBOX_ID:-}" ]]; then
+    echo "$TICKTICK_INBOX_ID"; return
+  fi
+  local id
+  id=$(_get "/project/inbox/data" | python3 -c "
+import sys, json
+print(json.load(sys.stdin).get('project', {}).get('id', ''))
+" 2>/dev/null)
+  if [[ -z "$id" ]]; then
+    echo "ERROR: Could not discover inbox id; set TICKTICK_INBOX_ID" >&2; exit 1
+  fi
+  echo "$id"
+}
+
 # Resolve project name → id
 resolve_project() {
   local input="$1"
   if [[ "$input" == "inbox" ]]; then
-    echo "inbox131039472"; return
+    inbox_id; return
   fi
   # If looks like an ID already (hex string), return as-is
   if [[ "$input" =~ ^[0-9a-f]{24}$ ]]; then
@@ -129,7 +148,7 @@ for t in tasks:
       case "$1" in
         --project)  PROJECT="$2";  shift 2 ;;
         --priority) PRIORITY=$(priority_val "$2"); shift 2 ;;
-        --due)      DUE="${2}-03:00"; shift 2 ;;
+        --due)      DUE="${2}${TZ_OFFSET}"; shift 2 ;;
         --notes)    NOTES="$2";    shift 2 ;;
         --tag)      TAGS="$2";     shift 2 ;;
         *) echo "ERROR: Unknown option $1" >&2; exit 1 ;;
@@ -143,13 +162,13 @@ d = {
   'title': sys.argv[1],
   'projectId': sys.argv[2],
   'priority': int(sys.argv[3]),
-  'timeZone': 'America/Buenos_Aires'
 }
 if sys.argv[4]: d['dueDate'] = sys.argv[4]
 if sys.argv[5]: d['content'] = sys.argv[5]
 if sys.argv[6]: d['tags'] = [t.strip() for t in sys.argv[6].split(',')]
+if sys.argv[7]: d['timeZone'] = sys.argv[7]
 print(json.dumps(d))
-" "$TITLE" "$PROJECT_ID" "$PRIORITY" "$DUE" "$NOTES" "$TAGS")
+" "$TITLE" "$PROJECT_ID" "$PRIORITY" "$DUE" "$NOTES" "$TAGS" "${TICKTICK_TIMEZONE:-}")
     RESULT=$(_post "/task" "$BODY")
     echo "$RESULT" | python3 -c "
 import sys, json
@@ -174,7 +193,7 @@ print(f'   id: {d[\"id\"]}')
         *) echo "ERROR: Unknown option $1" >&2; exit 1 ;;
       esac
     done
-    [[ -z "$PROJECT_ID" ]] && PROJECT_ID="inbox131039472"
+    [[ -z "$PROJECT_ID" ]] && PROJECT_ID=$(inbox_id)
     _post "/project/$PROJECT_ID/task/$TASK_ID/complete" "{}" > /dev/null
     echo "✅ Task $TASK_ID marked complete"
     ;;
@@ -189,7 +208,7 @@ print(f'   id: {d[\"id\"]}')
         *) echo "ERROR: Unknown option $1" >&2; exit 1 ;;
       esac
     done
-    [[ -z "$PROJECT_ID" ]] && PROJECT_ID="inbox131039472"
+    [[ -z "$PROJECT_ID" ]] && PROJECT_ID=$(inbox_id)
     _del "/project/$PROJECT_ID/task/$TASK_ID" > /dev/null
     echo "🗑️  Task $TASK_ID deleted"
     ;;
@@ -197,16 +216,17 @@ print(f'   id: {d[\"id\"]}')
   update)
     [[ $# -lt 1 ]] && { echo "ERROR: taskId required" >&2; exit 1; }
     TASK_ID="$1"; shift
-    PROJECT_ID="inbox131039472"; TITLE=""; PRIORITY=""; DUE=""
+    PROJECT_ID=""; TITLE=""; PRIORITY=""; DUE=""
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --project)  PROJECT_ID=$(resolve_project "$2"); shift 2 ;;
         --title)    TITLE="$2";  shift 2 ;;
         --priority) PRIORITY=$(priority_val "$2"); shift 2 ;;
-        --due)      DUE="${2}-03:00"; shift 2 ;;
+        --due)      DUE="${2}${TZ_OFFSET}"; shift 2 ;;
         *) echo "ERROR: Unknown option $1" >&2; exit 1 ;;
       esac
     done
+    [[ -z "$PROJECT_ID" ]] && PROJECT_ID=$(inbox_id)
     BODY=$(python3 -c "
 import json, sys
 d = {'id': sys.argv[1], 'projectId': sys.argv[2]}

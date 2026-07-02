@@ -64,20 +64,18 @@ Auth: `Authorization: Bearer {TICKTICK_TOKEN}`
 | Medium | 3     | 🟡    |
 | High   | 5     | 🔴    |
 
-## Known IDs (JMO)
+## Project IDs
 
-| Name | ID |
-|------|----|
-| Inbox | `inbox131039472` |
-
-> Other project IDs: discovered dynamically via `GET /project`
+- The inbox has a special per-user id of the form `inbox<userId>`. Discover it
+  from `GET /project/inbox/data` (the `project.id` field) or from any inbox
+  task's `projectId` — it never appears in `GET /project`.
+- All other project IDs: discovered dynamically via `GET /project`
 
 ## Date & Timezone
 
-- All dates use ISO 8601 format
-- JMO timezone: `America/Buenos_Aires` (ART = UTC-3, no DST)
-- ART offset: always `-03:00`
-- Example: `"2026-02-20T10:00:00-03:00"` = 10 AM Buenos Aires
+- All dates use ISO 8601 format with an explicit UTC offset
+- Example: `"2026-02-20T10:00:00-03:00"` = 10 AM in a UTC-3 timezone
+- The optional `timeZone` field takes an IANA name, e.g. `America/Buenos_Aires`
 
 ## Status Codes
 
@@ -115,6 +113,5 @@ Create a task with `parentId` set to the parent task's ID. Both tasks must be in
 
 - The `tp_*` personal access token (stored as `TICKTICK_TOKEN`) works directly as a Bearer token — no OAuth flow needed
 - Token does not expire (personal access token)
-- Inbox special ID: `inbox131039472` (discovered from task responses)
 - `GET /open/v1/user/profile` returns 404 with this token type — skip it
 - `GET /open/v1/task/{taskId}` (without projectId) returns 405 — always use the project-scoped endpoint
