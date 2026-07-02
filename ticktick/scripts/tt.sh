@@ -127,6 +127,9 @@ for p in projects:
     _get "/project/$PROJECT_ID/data" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
+err = data.get('error_description') or data.get('errorMessage') if isinstance(data, dict) else None
+if err:
+    print(f'ERROR: {err}', file=sys.stderr); exit(1)
 tasks = [t for t in data.get('tasks', []) if t.get('status', 0) == 0]
 PRIORITY = {0:'     ', 1:'[LOW] ', 3:'[MED] ', 5:'[HIGH]'}
 tasks.sort(key=lambda t: (-t.get('priority',0), t.get('dueDate','')))
