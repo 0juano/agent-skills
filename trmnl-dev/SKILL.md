@@ -1,5 +1,5 @@
 ---
-name: trmnl-private-plugins
+name: trmnl-dev
 description: >
   Build, update, and operate TRMNL e-ink private plugins end to end — webhook data
   updates and merge variables, Liquid markup with Framework 3.1, the per-plugin MCP
