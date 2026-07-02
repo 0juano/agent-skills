@@ -1,6 +1,7 @@
 ---
 name: edgeone-pages-deploy
 description: Deploys static HTML to a public URL instantly with no authentication required. Use when asked to "host this", "deploy this site", "get a public link", "share this HTML", "quick deploy", "publish this page", or any request to make an HTML file publicly accessible via URL. Supports self-contained HTML files with inline CSS/JS.
+license: MIT
 metadata:
   author: 0juano
   version: "1.0.0"

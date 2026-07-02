@@ -8,6 +8,11 @@ description: >
   Supports parallel search across databases, JSON/table/text output, and filtering
   by jurisdiction. Built from reverse-engineered MCP servers (hernan-cc) — direct
   HTTP calls, no MCP layer needed.
+license: MIT
+compatibility: Requires Python 3.10+
+metadata:
+  author: 0juano
+  version: "1.0.0"
 ---
 
 # ley-ar — Argentine Legal Database Search

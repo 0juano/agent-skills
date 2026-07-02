@@ -5,6 +5,7 @@ description: >
   pay $0.01 USDC per request on Base mainnet. Use when users ask for Argentine
   bond data, analytics, cashflows, history, riesgo país, or ISIN/ticker lookups
   (e.g. AL30, GD30, US040114HS26). Supports automatic 402 → payment → retry.
+license: MIT
 metadata:
   author: 0juano
   version: "2.1.0"

@@ -1,6 +1,7 @@
 ---
 name: x-image-cards
 description: Create X/Twitter cards that look like images, not marketing banners. Use when asked to "create OG images", "set up X cards", "make social cards", or "twitter card without text".
+license: MIT
 metadata:
   author: 0juano
   version: "1.0.0"
